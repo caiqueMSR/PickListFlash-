@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick List - Flash Courier</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#f5f4f0;--sf:#fff;--sf2:#f0efe9;--bd:#e0ddd5;--bd2:#ccc9be;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9e9b93;--ac:#1a1a18;--gn:#2d7a4f;--gn2:#e8f5ee;--ye:#9a6c00;--ye2:#fff8e1;--rd:#b93232;--rd2:#fdeaea;--bl:#1a4fa0;--bl2:#e8eef8;--r:10px;--rs:6px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
+header{background:var(--ac);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+header h1{font-size:15px;font-weight:600}header p{font-size:11px;opacity:.6;margin-top:2px}
+.sync{font-size:11px;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:#4caf50;flex-shrink:0}
+.dot.salvando{background:#ff9800;animation:pisca .7s infinite}.dot.erro{background:#f44336}
+@keyframes pisca{0%,100%{opacity:1}50%{opacity:.2}}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:16px}
+.tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--tx);border-bottom-color:var(--ac)}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.ct{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.sb{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.sb input{flex:1;min-width:160px;padding:8px 12px;font-size:13px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--sf2);color:var(--tx)}
+.sb input:focus{outline:none;border-color:var(--bd2)}
+.sb select{padding:8px 10px;font-size:13px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--sf);color:var(--tx)}
+.mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px}
+.mc{background:var(--sf2);border-radius:var(--rs);padding:10px 12px;border:1px solid var(--bd)}
+.ml{font-size:10px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.mv{font-size:22px;font-weight:700}.mv.rd{color:var(--rd)}.mv.ye{color:var(--ye)}.mv.gn{color:var(--gn)}.mv.bl{color:var(--bl)}
+.tw{overflow-x:auto;border-radius:var(--rs);border:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2);background:var(--sf2);border-bottom:1px solid var(--bd);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--tx)}
+td{padding:9px 10px;border-bottom:1px solid var(--bd);color:var(--tx);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--sf2)}
+.nr{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.brd{background:var(--rd2);color:var(--rd)}.bye{background:var(--ye2);color:var(--ye)}.bgn{background:var(--gn2);color:var(--gn)}
+.cb{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--sf2);color:var(--tx2);border:1px solid var(--bd)}
+.mi{width:54px;padding:3px 5px;font-size:12px;text-align:center;border:1px solid var(--bd);border-radius:4px;background:var(--sf2);color:var(--tx)}
+.mi:focus{outline:none;border-color:var(--bd2)}
+.sneg{color:var(--rd);font-weight:600}.rvl{color:var(--ye);font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;border-radius:var(--rs);border:1px solid var(--bd2);background:var(--sf);color:var(--tx);cursor:pointer}
+.btn:hover{background:var(--sf2)}
+.bp{background:var(--ac);color:#fff;border-color:transparent}.bp:hover{opacity:.88;background:var(--ac)}
+.bs{padding:5px 12px;font-size:12px}
+.bi{padding:4px 8px;font-size:12px;border-radius:4px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx2);cursor:pointer}
+.bi:hover{background:var(--bd2);color:var(--tx)}
+.bn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--rs);border:1px solid var(--gn);background:var(--gn2);color:var(--gn);cursor:pointer}
+.bn:hover{opacity:.85}
+.bw{background:#25d366;color:#fff;border-color:transparent}.bw:hover{opacity:.88}
+.dz{border:1.5px dashed var(--bd2);border-radius:var(--rs);padding:24px 16px;text-align:center;cursor:pointer;background:var(--sf2)}
+.dz:hover,.dz.over{border-color:var(--ac);background:var(--bg)}
+.dz.ok{border-color:var(--gn);border-style:solid}
+.dz p{font-size:13px;color:var(--tx2)}.dz.ok p{color:var(--gn)}
+#fi{display:none}
+.ac2{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.em{font-size:12px;color:var(--rd);margin-top:6px;min-height:16px}
+.im{font-size:12px;color:var(--gn);margin-top:6px;min-height:16px}
+.fr{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.pf{margin-top:10px;font-size:11px;color:var(--tx3);text-align:right}
+.ep{text-align:center;padding:2rem;color:var(--tx2);font-size:13px}
+.mb2{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);padding:2rem;text-align:center;color:var(--tx2);font-size:13px}
+.uh{font-size:12px;color:var(--tx2);margin-bottom:10px;background:var(--bl2);border:1px solid #c0d0e8;border-radius:var(--rs);padding:8px 12px}
+.tv{color:var(--gn);font-weight:600}
+.nb{font-size:10px;padding:1px 6px;border-radius:20px;background:var(--gn2);color:var(--gn);border:1px solid var(--gn);margin-left:4px;font-weight:600}
+.lo{position:fixed;inset:0;background:rgba(245,244,240,.95);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.lo p{font-size:13px;color:var(--tx2)}
+.sp{width:28px;height:28px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.md{background:var(--sf);border-radius:var(--r);border:1px solid var(--bd);width:100%;max-width:380px}
+.mh{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.mh h3{font-size:14px;font-weight:600}
+.mc2{background:none;border:none;font-size:22px;cursor:pointer;color:var(--tx2);line-height:1;padding:0 4px}
+.mc2:hover{color:var(--tx)}
+.mbd{padding:16px}
+.fd{margin-bottom:14px}
+.fd label{display:block;font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.fd input,.fd select{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--sf2);color:var(--tx)}
+.fd input:focus,.fd select:focus{outline:none;border-color:var(--bd2)}
+.mf{padding:12px 16px;border-top:1px solid var(--bd);display:flex;gap:8px;justify-content:space-between;align-items:center}
+.bex{font-size:12px;color:var(--rd);background:none;border:none;cursor:pointer;padding:4px 0}
+.bex:hover{text-decoration:underline}
+@media(max-width:500px){.mg{grid-template-columns:repeat(2,1fr)}.wrap{padding:12px 10px 60px}}
+</style>
+</head>
+<body>
+<div class="lo" id="lo"><div class="sp"></div><p>Carregando dados salvos...</p></div>
+<div class="mo" id="mo" style="display:none" onclick="if(event.target===this)fModal()">
+  <div class="md">
+    <div class="mh"><h3 id="mtit">Editar</h3><button class="mc2" onclick="fModal()">&#x2715;</button></div>
+    <div class="mbd">
+      <div class="fd"><label>Nome do produto</label><input type="text" id="eap"></div>
+      <div class="fd"><label>Estoque atual</label><input type="number" id="ees" min="0"></div>
+      <div class="fd"><label>Minimo sugerido</label><input type="number" id="emi" min="0"></div>
+      <div class="fd"><label>Categoria</label><select id="eca"><option value="Achocolatado">Achocolatado</option><option value="Bebidas">Bebidas</option><option value="Bolacha">Bolacha</option><option value="Bomboniere">Bomboniere</option><option value="Higiene">Higiene</option><option value="Mercearia">Mercearia</option><option value="Padaria">Padaria</option><option value="Refrigerante">Refrigerante</option><option value="Snacks">Snacks</option><option value="Sorvete">Sorvete</option></select></div>
+    </div>
+    <div class="mf">
+      <button class="bex" id="bex" onclick="delProd()" style="display:none">&#x1F5D1; Excluir</button>
+      <div style="display:flex;gap:8px"><button class="btn bs" onclick="fModal()">Cancelar</button><button class="btn bs bp" onclick="saveEdit()">Salvar</button></div>
+    </div>
+  </div>
+</div>
+<header><div><h1>&#x1F4E6; Pick List - Flash Courier</h1><p>Open You Market</p></div><div class="sync"><div class="dot" id="sdot"></div><span id="stxt">Conectando...</span></div></header>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" onclick="showEst()">Estoque</div>
+    <div class="tab" onclick="showVnd()">Vendas</div>
+    <div class="tab" onclick="showPkl()">Pick List</div>
+  </div>
+  <div id="tab-est">
+    <div class="card">
+      <div class="ct"><span>Produtos - <span id="hc">...</span></span><button class="bn" onclick="openNew()">+ Novo produto</button></div>
+      <div class="sb"><input type="text" id="sq" placeholder="Buscar produto..." oninput="renderEst()"><select id="sc" onchange="renderEst()"><option value="">Todas as categorias</option><option value="Achocolatado">Achocolatado</option><option value="Bebidas">Bebidas</option><option value="Bolacha">Bolacha</option><option value="Bomboniere">Bomboniere</option><option value="Higiene">Higiene</option><option value="Mercearia">Mercearia</option><option value="Padaria">Padaria</option><option value="Refrigerante">Refrigerante</option><option value="Snacks">Snacks</option><option value="Sorvete">Sorvete</option></select></div>
+      <div class="tw"><table><thead><tr><th onclick="sortE('apelido')">Produto</th><th onclick="sortE('categoria')">Categoria</th><th class="nr" onclick="sortE('estoque_atual')">Estoque</th><th class="nr">Minimo</th><th style="width:44px"></th></tr></thead><tbody id="estb"></tbody></table></div>
+      <p class="im" id="einf"></p>
+    </div>
+    <div class="ac2"><button class="btn bp" onclick="showVnd()">&#x25B6; Carregar vendas</button></div>
+  </div>
+  <div id="tab-vnd" style="display:none">
+    <div class="card"><div class="ct">Relatorio de vendas (Excel)</div>
+      <p class="uh">Suba o relatorio de vendas. A ferramenta filtra automaticamente o Flash Courier.</p>
+      <div class="dz" id="dz" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');hFile(event.dataTransfer.files[0])"><p id="dlb">&#x1F4C2; Clique ou arraste o arquivo .xlsx</p></div>
+      <input type="file" id="fi" accept=".xlsx,.xls" onchange="hFile(this.files[0])">
+      <p class="em" id="ferr"></p><p class="im" id="finf"></p>
+    </div>
+    <div class="ac2"><button class="btn bp" onclick="genPL()">&#x2714; Gerar Pick List</button><button class="btn" onclick="genPLsv()">Ver sem vendas</button></div>
+    <p class="em" id="gerr"></p>
+  </div>
+  <div id="tab-pkl" style="display:none"><div id="ra"><div class="mb2">Acesse a aba Vendas e gere a pick list primeiro.</div></div></div>
+</div>
+<script>
+firebase.initializeApp({apiKey:"AlzaSyBUI2xQyLAPq1xg2JWgA9IMZ3Ht6idyZVo",authDomain:"listamercadinho.firebaseapp.com",projectId:"listamercadinho",storageBucket:"listamercadinho.firebasestorage.app",messagingSenderId:"30507783997",appId:"1:30507783997:web:9601531157a5b1cfebd754"});
+var db=firebase.firestore();
+var DOC=db.collection("picklist_flash").doc("base");
+var BASE=[];
+var BI=[{"apelido":"Água 500ml","nome":"Agua Crystal 500ml","categoria":"Bebidas","codigo":"7894900530001","preco":"2.99","estoque_atual":25,"minimo":37},{"apelido":"Água com gás 500ml","nome":"Agua Crystal C/ Gás 500ml","categoria":"Bebidas","codigo":"7894900531008","preco":"3.49","estoque_atual":20,"minimo":30},{"apelido":"Coca cola lata","nome":"Coca-Cola Original Lata 350ml","categoria":"Refrigerante","codigo":"7894900010015","preco":"5.19","estoque_atual":10,"minimo":15},{"apelido":"Coca zero lata","nome":"Coca-Cola Sem Açucar Lata 350ml","categoria":"Refrigerante","codigo":"7894900700015","preco":"5.19","estoque_atual":14,"minimo":21},{"apelido":"Coca 2L","nome":"Coca-Cola Original 2L","categoria":"Refrigerante","codigo":"7894900027013","preco":"13.79","estoque_atual":4,"minimo":6},{"apelido":"Coca zero 2L","nome":"Coca-Cola Zero 2L","categoria":"Refrigerante","codigo":"","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Pepsi black","nome":"Pepsi Black Lata 350ml","categoria":"Refrigerante","codigo":"","preco":"","estoque_atual":12,"minimo":18},{"apelido":"Pepsi black 1,5L","nome":"Pepsi Black 2L","categoria":"Refrigerante","codigo":"7892840813444","preco":"12.89","estoque_atual":3,"minimo":5},{"apelido":"Guaraná zero","nome":"Guaraná Zero 350ml","categoria":"Refrigerante","codigo":"7891991000727","preco":"5.19","estoque_atual":14,"minimo":21},{"apelido":"Guaraná zero 1,5L","nome":"Guarana Antartica Zero 2L","categoria":"Refrigerante","codigo":"7891991001373","preco":"12.99","estoque_atual":3,"minimo":5},{"apelido":"Sprite","nome":"Sprite Lata 350ml","categoria":"Refrigerante","codigo":"","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Schweppes","nome":"Schweppes Citrus Lata 350ml","categoria":"Refrigerante","codigo":"7894900180503","preco":"","estoque_atual":14,"minimo":21},{"apelido":"Gatorade","nome":"Gatorade  330ml","categoria":"Bebidas","codigo":"7892840808044","preco":"7.68","estoque_atual":10,"minimo":15},{"apelido":"Chá pêssego zero","nome":"Chá Gelado Pessego Zero Lipton 340ml","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":14,"minimo":21},{"apelido":"Chá original","nome":"Chá Gelado Original Lipton 340ml","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":8,"minimo":12},{"apelido":"Del Vale pêssego","nome":"Suco Del Valle Pessego 1L","categoria":"Bebidas","codigo":"7898341430036","preco":"12.49","estoque_atual":12,"minimo":18},{"apelido":"Del Vale uva","nome":"Suco Del Valle Uva 1L","categoria":"Bebidas","codigo":"7898341430098","preco":"12.49","estoque_atual":10,"minimo":15},{"apelido":"Del Vale maracujá","nome":"Suco Del Valle Maracuja 1L","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":7,"minimo":10},{"apelido":"Natural one","nome":"Suco Natural One","categoria":"Bebidas","codigo":"7899916904853","preco":"25.99","estoque_atual":3,"minimo":5},{"apelido":"Redbull zero","nome":"Red Bull Energy Drink Zero 250ml","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Redbull original","nome":"Red Bull Energy Drink 250ml","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":2,"minimo":5},{"apelido":"Monster ultra","nome":"Monster Ultra 473ml","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Monster ultra violet","nome":"Monster Ultra Violet - Sem Açucar - 473ml","categoria":"Bebidas","codigo":"070847033929","preco":"12.49","estoque_atual":9,"minimo":13},{"apelido":"Monster kaotic","nome":"Monster - Khaotic 473ml","categoria":"Bebidas","codigo":"1220000250147","preco":"12.49","estoque_atual":11,"minimo":16},{"apelido":"Monster Mongo loko","nome":"Monster Mango Loco 473ml","categoria":"Bebidas","codigo":"070847033301","preco":"12.49","estoque_atual":6,"minimo":9},{"apelido":"Monster Rio punch","nome":"Monster Rio Punch - 473ml","categoria":"Bebidas","codigo":"7898938890120","preco":"12.49","estoque_atual":6,"minimo":9},{"apelido":"Monster pipeline punch","nome":"Monster Pacific Punch - 473ml","categoria":"Bebidas","codigo":"1220000250031","preco":"12.49","estoque_atual":6,"minimo":9},{"apelido":"Monster pacific","nome":"Monster Pacific Punch - 473ml","categoria":"Bebidas","codigo":"1220000250031","preco":"12.49","estoque_atual":2,"minimo":5},{"apelido":"Monster strambery zero","nome":"Monster Ultra Strawberry  Dreams - 473ml","categoria":"Bebidas","codigo":"7898770420011","preco":"12.49","estoque_atual":6,"minimo":9},{"apelido":"Yopro","nome":"YoPRO Danone 15g 250ml","categoria":"Bebidas","codigo":"7891025115656","preco":"10.49","estoque_atual":19,"minimo":28},{"apelido":"Cappuccino chocolate","nome":"Cappuccino - Chocolate","categoria":"Bebidas","codigo":"7896089051094","preco":"5.99","estoque_atual":12,"minimo":18},{"apelido":"Cappuccino","nome":"Cappuccino - Baunilha","categoria":"Bebidas","codigo":"7896089051056","preco":"5.99","estoque_atual":20,"minimo":30},{"apelido":"Starbucks clássico","nome":"Starbucks Classico","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Starbucks mocha","nome":"Starbucks Mocha","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Starbucks caramelo","nome":"Starbucks Caramelo","categoria":"Bebidas","codigo":"","preco":"","estoque_atual":5,"minimo":7},{"apelido":"Todynho","nome":"Todynho","categoria":"Achocolatado","codigo":"","preco":"","estoque_atual":4,"minimo":6},{"apelido":"Pudim","nome":"Pudim - Calda de Caramelo","categoria":"Sorvete","codigo":"606529347475","preco":"5.29","estoque_atual":6,"minimo":9},{"apelido":"Lanche frango","nome":"Lanche Natural - Frango","categoria":"Padaria","codigo":"040232863653","preco":"15.49","estoque_atual":3,"minimo":5},{"apelido":"Lanche peito de peru","nome":"Lanche Natural - Peito de Peru","categoria":"Padaria","codigo":"040232863660","preco":"15.49","estoque_atual":2,"minimo":5},{"apelido":"Lanche salame","nome":"Lanche Natural - Salame","categoria":"Padaria","codigo":"7899985001422","preco":"15.49","estoque_atual":1,"minimo":5},{"apelido":"Snickers","nome":"Snickers","categoria":"Bomboniere","codigo":"7896423420180","preco":"4.99","estoque_atual":13,"minimo":19},{"apelido":"Snickers branco","nome":"Snickers Branco","categoria":"Bomboniere","codigo":"7896423488883","preco":"4.99","estoque_atual":8,"minimo":12},{"apelido":"Snickers black","nome":"Snickers Dark","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":2,"minimo":5},{"apelido":"Bis xtra","nome":"Bis Xtra Original 45g","categoria":"Bomboniere","codigo":"7622300988470","preco":"6.19","estoque_atual":11,"minimo":16},{"apelido":"Bis xtra branco","nome":"Bis Xtra Branco 45g","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":4,"minimo":6},{"apelido":"Prestígio","nome":"Prestigio 33g","categoria":"Bomboniere","codigo":"7891000460207","preco":"4.89","estoque_atual":16,"minimo":24},{"apelido":"Kit kat","nome":"Kit-Kat Nestle 41,5g","categoria":"Bomboniere","codigo":"7891000248768","preco":"5.49","estoque_atual":15,"minimo":22},{"apelido":"Kit kat dark","nome":"Kit-Kat Dark Nestle 41,5g","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":9,"minimo":13},{"apelido":"Kit kat branco","nome":"Kit-Kat Branco Nestle 41,5g","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":11,"minimo":16},{"apelido":"Kinder bueno","nome":"Kinder Bueno 43g","categoria":"Bomboniere","codigo":"80052760","preco":"10.75","estoque_atual":14,"minimo":21},{"apelido":"Baton","nome":"Baton Chocolate ao Leite - 16g","categoria":"Bomboniere","codigo":"78912359","preco":"3.49","estoque_atual":30,"minimo":45},{"apelido":"Alpino","nome":"Alpino Nestle 85g","categoria":"Bomboniere","codigo":"7891000336373","preco":"10.99","estoque_atual":8,"minimo":12},{"apelido":"Diamante negro","nome":"Chocolate Diam Negro Lacta 80g","categoria":"Bomboniere","codigo":"7622210674050","preco":"9.75","estoque_atual":6,"minimo":9},{"apelido":"Ouro Branco","nome":"Bombom Ouro Branco 20g","categoria":"Bomboniere","codigo":"78939318","preco":"1.99","estoque_atual":5,"minimo":7},{"apelido":"Suflair","nome":"Suflair Nestle 80g","categoria":"Bomboniere","codigo":"7891000329856","preco":"10.99","estoque_atual":9,"minimo":13},{"apelido":"Talento verde 25g","nome":"Talento Avelãs - 25g","categoria":"Bomboniere","codigo":"78907461","preco":"4.89","estoque_atual":14,"minimo":21},{"apelido":"Talento vermelho 25g","nome":"Talento Avelã Diet 25g","categoria":"Bomboniere","codigo":"78917125","preco":"7.29","estoque_atual":15,"minimo":22},{"apelido":"Talento vermelho 85g","nome":"Chocolate Talento - Cereais e Passas 85g","categoria":"Bomboniere","codigo":"7891008121674","preco":"10.99","estoque_atual":3,"minimo":5},{"apelido":"Talento dark 85g","nome":"Chocolate Talento - Cereais e Passas 85g","categoria":"Bomboniere","codigo":"7891008121674","preco":"10.99","estoque_atual":4,"minimo":6},{"apelido":"Talento verde 85g","nome":"Chocolate Talento - Cereais e Passas 85g","categoria":"Bomboniere","codigo":"7891008121674","preco":"10.99","estoque_atual":0,"minimo":5},{"apelido":"Lacta oreo","nome":"Chocolate ao Leite Oreo","categoria":"Bomboniere","codigo":"7622210567567","preco":"9.75","estoque_atual":4,"minimo":6},{"apelido":"Sonho de valsa","nome":"Bombom Sonho de Valsa","categoria":"Bomboniere","codigo":"78939301","preco":"1.99","estoque_atual":1,"minimo":5},{"apelido":"Shot","nome":"Chocolate Shot Lacta 80g","categoria":"Bomboniere","codigo":"7622210674395","preco":"10.99","estoque_atual":1,"minimo":5},{"apelido":"Trento vermelho","nome":"Trento Chocolate","categoria":"Bomboniere","codigo":"7896306612817","preco":"4.49","estoque_atual":7,"minimo":10},{"apelido":"Trento branco","nome":"Trento Branco","categoria":"Bomboniere","codigo":"7896306616389","preco":"4.49","estoque_atual":6,"minimo":9},{"apelido":"Trento dark","nome":"Trento Avelã","categoria":"Bomboniere","codigo":"7896306612831","preco":"4.49","estoque_atual":6,"minimo":9},{"apelido":"Barra cereal","nome":"Barra Cereal","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":27,"minimo":40},{"apelido":"Barra proteína","nome":"Barra Proteina Choco YoPro","categoria":"Bomboniere","codigo":"7898599217694","preco":"15.99","estoque_atual":6,"minimo":9},{"apelido":"Bananinha","nome":"Bananada Fazendinha","categoria":"Bomboniere","codigo":"7897011000272","preco":"","estoque_atual":2,"minimo":5},{"apelido":"Pacoquinha","nome":"Paçoquinha","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":18,"minimo":27},{"apelido":"Fini azedinha","nome":"Fini - Azedinhos 80g","categoria":"Bomboniere","codigo":"8410525146435","preco":"9.78","estoque_atual":6,"minimo":9},{"apelido":"Fini tubes","nome":"Fini Tubes","categoria":"Bomboniere","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Mentos","nome":"Balas Mentos - rainbow","categoria":"Bomboniere","codigo":"7895144603148","preco":"2.99","estoque_atual":5,"minimo":7},{"apelido":"Halls melancia","nome":"Halls Melancia 28g","categoria":"Bomboniere","codigo":"78938854","preco":"2.99","estoque_atual":12,"minimo":18},{"apelido":"Halls cereja","nome":"Halls Cereja 28g","categoria":"Bomboniere","codigo":"78938793","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Tic tac","nome":"Tic Tac Menta 14,5g","categoria":"Bomboniere","codigo":"78945449","preco":"3.79","estoque_atual":1,"minimo":5},{"apelido":"Trident","nome":"Trident Morango 8g","categoria":"Bomboniere","codigo":"7895800201503","preco":"2.99","estoque_atual":12,"minimo":18},{"apelido":"Teens","nome":"Teens Chocolate 30g","categoria":"Bolacha","codigo":"7896003711905","preco":"3.49","estoque_atual":8,"minimo":12},{"apelido":"Ana Maria","nome":"Bolo Ana Maria Gotas Choc. 70g","categoria":"Bolacha","codigo":"7896002363259","preco":"6.38","estoque_atual":9,"minimo":13},{"apelido":"Pringles churrasco","nome":"Pringles Churrasco 109g","categoria":"Snacks","codigo":"7896004006406","preco":"15.99","estoque_atual":5,"minimo":7},{"apelido":"Pringles original","nome":"Pringles/Ruff Original 104g","categoria":"Snacks","codigo":"7896004006277","preco":"15.99","estoque_atual":5,"minimo":7},{"apelido":"Pringles verde","nome":"Pringles/Ruffl Creme e Cebola 109g","categoria":"Snacks","codigo":"7896004006239","preco":"15.99","estoque_atual":5,"minimo":7},{"apelido":"Doritos","nome":"Doritos Queijo Nacho 75g","categoria":"Snacks","codigo":"7892840822347","preco":"11.99","estoque_atual":5,"minimo":7},{"apelido":"Ruffles original","nome":"Ruffles Original 68g","categoria":"Snacks","codigo":"7892840823054","preco":"9.99","estoque_atual":3,"minimo":5},{"apelido":"Ruffles verde","nome":"Ruffles Creme e Cebola","categoria":"Snacks","codigo":"","preco":"","estoque_atual":5,"minimo":7},{"apelido":"Lays sour cream","nome":"Lays Sour Cream","categoria":"Snacks","codigo":"7892840825157","preco":"13.49","estoque_atual":3,"minimo":5},{"apelido":"Lays original","nome":"Lays Classica","categoria":"Snacks","codigo":"7892840823375","preco":"11.99","estoque_atual":5,"minimo":7},{"apelido":"Cebolitos","nome":"Salgadinho Cebolitos","categoria":"Snacks","codigo":"7892840825126","preco":"8.19","estoque_atual":3,"minimo":5},{"apelido":"Fandangos","nome":"Fandangos Presunto 60g","categoria":"Snacks","codigo":"7892840823061","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Torcida","nome":"Torcida Cebola 60g","categoria":"Snacks","codigo":"7892840822576","preco":"3.99","estoque_atual":0,"minimo":5},{"apelido":"Torcida cebola","nome":"Torcida Cebola 60g","categoria":"Snacks","codigo":"7892840822576","preco":"3.99","estoque_atual":10,"minimo":15},{"apelido":"Torcida pimenta","nome":"Torcida Pimenta 60g","categoria":"Snacks","codigo":"","preco":"","estoque_atual":9,"minimo":13},{"apelido":"Fofura verde","nome":"Fofura Cebola 60g","categoria":"Snacks","codigo":"7892840823177","preco":"4.29","estoque_atual":9,"minimo":13},{"apelido":"Fofura roxo","nome":"Fofura Churrasco 60g","categoria":"Snacks","codigo":"7892840823191","preco":"4.29","estoque_atual":9,"minimo":13},{"apelido":"Amendoim crocante","nome":"Amendoim Crocante","categoria":"Snacks","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Amendoim japonês","nome":"Amendoin Japonês Dori 90g","categoria":"Snacks","codigo":"7896058598674","preco":"","estoque_atual":5,"minimo":7},{"apelido":"Ovinhos","nome":"Amendoin Ovinhos ElmaChips 65g","categoria":"Snacks","codigo":"7892840818258","preco":"4.99","estoque_atual":7,"minimo":10},{"apelido":"Pipoca doce","nome":"Pipoca Doce - 40g","categoria":"Snacks","codigo":"7896045320363","preco":"3.19","estoque_atual":5,"minimo":7},{"apelido":"Pipoca cinema","nome":"Pipoca Mant de Cinema Yoki 100g","categoria":"Snacks","codigo":"7891095008452","preco":"5.79","estoque_atual":10,"minimo":15},{"apelido":"Belvita","nome":"Biscoito Integral - Mel e Gotas de Cacau","categoria":"Bolacha","codigo":"7622210661814","preco":"9.49","estoque_atual":7,"minimo":10},{"apelido":"Passatempo","nome":"Passa Tempo Chocolate 130g","categoria":"Bolacha","codigo":"7891000241356","preco":"3.79","estoque_atual":8,"minimo":12},{"apelido":"Cookies","nome":"Cookies Bauducco 60g","categoria":"Bolacha","codigo":"7891962054476","preco":"5.12","estoque_atual":3,"minimo":5},{"apelido":"Cookies alpino","nome":"Cookies Alpino","categoria":"Bolacha","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Cookies piraquê","nome":"Cookies Piraquê","categoria":"Bolacha","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Bready","nome":"B-ready Nutella 22g","categoria":"Bolacha","codigo":"7898024397915","preco":"5.91","estoque_atual":10,"minimo":15},{"apelido":"Torrada peito Peru","nome":"Torrada - Bauducco","categoria":"Bolacha","codigo":"7891962053196","preco":"5.99","estoque_atual":5,"minimo":7},{"apelido":"Torrada salaminho","nome":"Torrada - Bauducco","categoria":"Bolacha","codigo":"7891962053196","preco":"5.99","estoque_atual":5,"minimo":7},{"apelido":"Torrada churrasco","nome":"Torrada - Bauducco","categoria":"Bolacha","codigo":"7891962053196","preco":"5.99","estoque_atual":5,"minimo":7},{"apelido":"Bolacha chocolate","nome":"Bolacha Chocolate","categoria":"Bolacha","codigo":"","preco":"","estoque_atual":2,"minimo":5},{"apelido":"Bolacha Maisena","nome":"Bolacha Maisena Bauduco 170g","categoria":"Bolacha","codigo":"7891962032450","preco":"5.59","estoque_atual":2,"minimo":5},{"apelido":"Triunfo cream cracker","nome":"Bolacha Triunfo Cream Cracker 164g","categoria":"Bolacha","codigo":"7896058258738","preco":"","estoque_atual":6,"minimo":9},{"apelido":"Wagner chocolate","nome":"Wagner Chocolate","categoria":"Bolacha","codigo":"","preco":"","estoque_atual":8,"minimo":12},{"apelido":"Club social","nome":"Club Social Original 144g","categoria":"Bolacha","codigo":"7622300990701","preco":"8.99","estoque_atual":4,"minimo":6},{"apelido":"Trakinas morango","nome":"Trakinas Morango 126g","categoria":"Bolacha","codigo":"7622210592781","preco":"3.99","estoque_atual":2,"minimo":5},{"apelido":"Trakinas meio a meio","nome":"Trakinas Meio a Meio 126g","categoria":"Bolacha","codigo":"7622210592637","preco":"3.99","estoque_atual":3,"minimo":5},{"apelido":"Trakinas chocolate","nome":"Trakinas Chocolate 126g","categoria":"Bolacha","codigo":"7622210592750","preco":"3.99","estoque_atual":1,"minimo":5},{"apelido":"Negresco","nome":"Biscoito Negresco","categoria":"Bolacha","codigo":"7891000376768","preco":"3.59","estoque_atual":2,"minimo":5},{"apelido":"CupNoodles galinha","nome":"Cup Noodles 68g","categoria":"Mercearia","codigo":"7891079013083","preco":"6.99","estoque_atual":3,"minimo":5},{"apelido":"CupNoodles cheddar","nome":"Cup Noodles - Queijo Cheddar","categoria":"Mercearia","codigo":"7891079013113","preco":"6.99","estoque_atual":3,"minimo":5},{"apelido":"Linea","nome":"Linea","categoria":"Bolacha","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Absorvente","nome":"Absorvente Always Noturno 8 und.","categoria":"Higiene","codigo":"7506339394535","preco":"12.99","estoque_atual":6,"minimo":9},{"apelido":"O.B","nome":"Absorvente Interno - O.B","categoria":"Higiene","codigo":"7896007541867","preco":"17.99","estoque_atual":2,"minimo":5},{"apelido":"Desodorante","nome":"Desodorante Nivea Derma Control 90","categoria":"Higiene","codigo":"4006000178899","preco":"21.59","estoque_atual":1,"minimo":5},{"apelido":"Enxaguante","nome":"Enxaguante Bucal - 60ml","categoria":"Higiene","codigo":"7891024130728","preco":"9.99","estoque_atual":5,"minimo":7},{"apelido":"Lenço umedecido","nome":"Lenco Umedecido","categoria":"Higiene","codigo":"","preco":"","estoque_atual":3,"minimo":5},{"apelido":"Escova dente","nome":"Escova de Dente Média","categoria":"Higiene","codigo":"6910021007206","preco":"7.99","estoque_atual":3,"minimo":5},{"apelido":"Pasta dente","nome":"Pasta de Dente","categoria":"Higiene","codigo":"","preco":"","estoque_atual":2,"minimo":5},{"apelido":"Fio dental","nome":"Fio Dental Colgate 50m","categoria":"Higiene","codigo":"7891024183007","preco":"17.65","estoque_atual":2,"minimo":5}];
+var CATS=["Achocolatado", "Bebidas", "Bolacha", "Bomboniere", "Higiene", "Mercearia", "Padaria", "Refrigerante", "Snacks", "Sorvete"];
+
+var vendas=null,dadosPL=[],sEC="categoria",sED=1,sPLC="repor",sPLD=-1,fPL="todos",eIdx=-1,isNew=false,stmr=null;
+
+function Q(id){return document.getElementById(id);}
+function setSync(s,t){Q("sdot").className="dot"+(s=="salvando"?" salvando":s=="erro"?" erro":"");Q("stxt").textContent=t;}
+
+function carregarBase(){
+  DOC.get().then(function(snap){
+    if(snap.exists&&snap.data().produtos&&snap.data().produtos.length>0){
+      BASE=snap.data().produtos;
+    }else{
+      BASE=JSON.parse(JSON.stringify(BI));
+      BASE.forEach(function(p){if(!p.minimo)p.minimo=Math.max(Math.ceil((p.estoque_atual||0)*1.5),5);});
+      salvarAgora();
+    }
+    Q("lo").style.display="none";setSync("ok","Salvo");renderEst();
+  }).catch(function(e){
+    console.error(e);
+    BASE=JSON.parse(JSON.stringify(BI));
+    BASE.forEach(function(p){if(!p.minimo)p.minimo=Math.max(Math.ceil((p.estoque_atual||0)*1.5),5);});
+    setTimeout(function(){Q("lo").style.display="none";},1000);
+    setSync("erro","Sem conexao");renderEst();
+  });
+}
+function salvarAgora(){
+  setSync("salvando","Salvando...");
+  DOC.set({produtos:BASE,atualizado:new Date().toISOString()}).then(function(){
+    setSync("ok","Salvo");
+  }).catch(function(e){console.error(e);setSync("erro","Erro ao salvar");});
+}
+function agSalvar(){clearTimeout(stmr);stmr=setTimeout(salvarAgora,800);}
+
+function showEst(){showTab("est");}
+function showVnd(){showTab("vnd");}
+function showPkl(){showTab("pkl");}
+function showTab(t){
+  ["est","vnd","pkl"].forEach(function(id){Q("tab-"+id).style.display=id===t?"":"none";});
+  document.querySelectorAll(".tab").forEach(function(el,i){el.classList.toggle("active",["est","vnd","pkl"][i]===t);});
+}
+
+function openEdit(idx){
+  isNew=false;eIdx=idx;var p=BASE[idx];
+  Q("mtit").textContent="Editar produto";
+  Q("eap").value=p.apelido;Q("ees").value=p.estoque_atual||0;Q("emi").value=p.minimo||0;Q("eca").value=p.categoria;
+  Q("bex").style.display="block";Q("mo").style.display="flex";
+}
+function openNew(){
+  isNew=true;eIdx=-1;
+  Q("mtit").textContent="Novo produto";Q("eap").value="";Q("ees").value="";Q("emi").value="";Q("eca").value=CATS[0]||"Bebidas";
+  Q("bex").style.display="none";Q("mo").style.display="flex";
+  setTimeout(function(){Q("eap").focus();},100);
+}
+function fModal(){Q("mo").style.display="none";eIdx=-1;isNew=false;}
+function saveEdit(){
+  var ap=Q("eap").value.trim();
+  if(!ap){alert("Informe o nome do produto.");return;}
+  var es=parseInt(Q("ees").value)||0,mi=parseInt(Q("emi").value)||0,ca=Q("eca").value;
+  if(isNew){
+    BASE.push({apelido:ap,nome:ap,estoque_atual:es,minimo:mi,categoria:ca,codigo:"",preco:"",novo:true});
+  }else{
+    BASE[eIdx].apelido=ap;BASE[eIdx].estoque_atual=es;BASE[eIdx].minimo=mi;BASE[eIdx].categoria=ca;
+  }
+  fModal();salvarAgora();renderEst();
+  if(dadosPL.length)calcPL(vendas?getVM():{});
+}
+function delProd(){
+  if(eIdx<0)return;
+  if(!confirm("Excluir "+BASE[eIdx].apelido+"?"))return;
+  BASE.splice(eIdx,1);fModal();salvarAgora();renderEst();
+  if(dadosPL.length)calcPL(vendas?getVM():{});
+}
+function mudarMin(inp,idx){BASE[idx].minimo=parseInt(inp.value)||0;agSalvar();if(dadosPL.length)calcPL(vendas?getVM():{});}
+
+function sortE(col){if(sEC===col)sED*=-1;else{sEC=col;sED=1;}renderEst();}
+function renderEst(){
+  var q=Q("sq").value.toLowerCase(),cat=Q("sc").value;
+  var dados=BASE.map(function(p,i){var o={};for(var k in p)o[k]=p[k];o._i=i;return o;}).filter(function(p){
+    return(!q||p.apelido.toLowerCase().indexOf(q)>=0||(p.nome||"").toLowerCase().indexOf(q)>=0)&&(!cat||p.categoria===cat);
+  });
+  dados.sort(function(a,b){
+    var av=a[sEC]!=null?a[sEC]:"",bv=b[sEC]!=null?b[sEC]:"";
+    if(typeof av==="number")return sED*(av-bv);
+    return sED*String(av).localeCompare(String(bv),"pt-BR");
+  });
+  Q("hc").textContent=BASE.length+" produtos";
+  var rows="";
+  for(var i=0;i<dados.length;i++){
+    var p=dados[i],est=p.estoque_atual||0,cor=est===0?" style=\"color:var(--rd)\"":"";
+    rows+="<tr>";
+    rows+="<td><div style=\"font-weight:500\">"+p.apelido+(p.novo?"<span class=\"nb\">novo</span>":"")+"</div>";
+    rows+="<div style=\"font-size:11px;color:var(--tx3)\">"+(p.nome&&p.nome!==p.apelido?p.nome:"")+"</div></td>";
+    rows+="<td><span class=\"cb\">"+p.categoria+"</span></td>";
+    rows+="<td class=\"nr\""+cor+">"+est+"</td>";
+    rows+="<td class=\"nr\"><input class=\"mi\" type=\"number\" min=\"0\" value=\""+(p.minimo||0)+"\" onchange=\"mudarMin(this,"+p._i+")\"></td>";
+    rows+="<td><button class=\"bi\" onclick=\"openEdit("+p._i+")\">editar</button></td>";
+    rows+="</tr>";
+  }
+  Q("estb").innerHTML=rows;
+  Q("einf").textContent=dados.length+" de "+BASE.length+" produto(s)";
+}
+
+function hFile(file){
+  if(!file)return;
+  Q("ferr").textContent="";Q("finf").textContent="Lendo...";
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      var hi=-1;
+      for(var i=0;i<Math.min(15,rows.length);i++){
+        var j=rows[i].join("").toLowerCase();
+        if(j.indexOf("produto")>=0&&j.indexOf("quantidade")>=0){hi=i;break;}
+      }
+      if(hi===-1){Q("ferr").textContent="Colunas nao encontradas.";Q("finf").textContent="";return;}
+      var hs=rows[hi].map(function(h){return String(h).trim().toLowerCase();});
+      var iP=-1,iQ=-1,iL=-1;
+      for(var i=0;i<hs.length;i++){
+        if(hs[i].indexOf("produto")>=0&&iP===-1)iP=i;
+        if(hs[i].indexOf("quantidade")>=0&&iQ===-1)iQ=i;
+        if((hs[i].indexOf("cliente")>=0||hs[i].indexOf("local")>=0)&&iL===-1)iL=i;
+      }
+      var data=[];
+      for(var i=hi+1;i<rows.length;i++){
+        var ro=rows[i],lo=iL>=0?String(ro[iL]||"").trim():"",pr=String(ro[iP]||"").trim(),qt=parseFloat(ro[iQ])||0;
+        if(pr)data.push({local:lo,prod:pr,qtd:qt});
+      }
+      vendas=data;
+      var fl=data.filter(function(r){return r.local.toLowerCase().indexOf("flash")>=0;});
+      Q("dz").classList.add("ok");
+      Q("dlb").textContent="OK: "+file.name+" ("+fl.length+" vendas Flash)";
+      Q("finf").textContent=fl.length+" vendas do Flash Courier carregadas.";
+    }catch(ex){Q("ferr").textContent="Erro: "+ex.message;Q("finf").textContent="";}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function norm(s){return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();}
+function simil(a,b){
+  var wa=norm(a).split(" ").filter(function(w){return w.length>2;});
+  var wb=norm(b).split(" ").filter(function(w){return w.length>2;});
+  var sa={},sb={};wa.forEach(function(w){sa[w]=1;});wb.forEach(function(w){sb[w]=1;});
+  var ka=Object.keys(sa),kb=Object.keys(sb);
+  if(!ka.length||!kb.length)return 0;
+  var inter=0;ka.forEach(function(w){if(sb[w])inter++;});
+  return inter/Math.max(ka.length,kb.length);
+}
+function getVM(){
+  var fl=vendas.filter(function(r){return r.local.toLowerCase().indexOf("flash")>=0;});
+  var vm={};fl.forEach(function(v){var n=norm(v.prod);if(!vm[n])vm[n]={total:0};vm[n].total+=v.qtd;});return vm;
+}
+function genPL(){
+  Q("gerr").textContent="";
+  if(!vendas){Q("gerr").textContent="Faca upload do relatorio primeiro.";return;}
+  calcPL(getVM());showPkl();
+}
+function genPLsv(){calcPL({});showPkl();}
+function calcPL(vm){
+  dadosPL=BASE.map(function(p,idx){
+    var vendido=0,melhor=0,ns=norm(p.nome||p.apelido),na=norm(p.apelido);
+    Object.keys(vm).forEach(function(k){
+      var s=Math.max(simil(ns,k),simil(na,k));
+      if(s>melhor){melhor=s;if(s>0.4)vendido=vm[k].total;}
+    });
+    var saldo=(p.estoque_atual||0)-vendido,repor=Math.max(0,(p.minimo||0)-saldo);
+    var o={};for(var k in p)o[k]=p[k];o._i=idx;o.vendido=vendido;o.saldo=saldo;o.repor=repor;return o;
+  });
+  renderPL();
+}
+function stItem(i){return i.saldo<=0?"critico":i.repor>0?"repor":"ok";}
+function sortPL(col){if(sPLC===col)sPLD*=-1;else{sPLC=col;sPLD=-1;}renderPL();}
+function chFilt(v){fPL=v;renderPL();}
+function renderPL(){
+  var srt=dadosPL.slice().sort(function(a,b){
+    var av=a[sPLC],bv=b[sPLC];
+    if(typeof av==="string")return sPLD*av.localeCompare(bv,"pt-BR");
+    return sPLD*(bv-av);
+  });
+  var fil=fPL==="todos"?srt:srt.filter(function(i){return stItem(i)===fPL;});
+  var tR=0,tC=0,tO=0,tV=0;
+  dadosPL.forEach(function(i){if(i.repor>0)tR++;if(stItem(i)==="critico")tC++;if(stItem(i)==="ok")tO++;tV+=i.vendido;});
+  var rows="";
+  for(var x=0;x<fil.length;x++){
+    var i=fil[x],st=stItem(i);
+    var bg=st==="critico"?"<span class=\"badge brd\">Critico</span>":st==="repor"?"<span class=\"badge bye\">Repor</span>":"<span class=\"badge bgn\">Ok</span>";
+    rows+="<tr><td>";
+    rows+="<div style=\"display:flex;align-items:center;gap:6px\"><b>"+i.apelido+"</b>";
+    rows+=(i.novo?"<span class=\"nb\">novo</span>":"");
+    rows+="<button class=\"bi\" onclick=\"openEdit("+i._i+")\">editar</button></div>";
+    rows+="<div style=\"font-size:10px;color:var(--tx3)\">"+i.categoria+"</div></td>";
+    rows+="<td class=\"nr\">"+(i.estoque_atual||0)+"</td>";
+    rows+="<td class=\"nr "+(i.vendido>0?"tv":"")+"\">"+(i.vendido||"-")+"</td>";
+    rows+="<td class=\"nr "+(i.saldo<=0?"sneg":"")+"\">"+i.saldo+"</td>";
+    rows+="<td class=\"nr\">"+(i.minimo||0)+"</td>";
+    rows+="<td class=\"nr "+(i.repor>0?"rvl":"")+"\">"+(i.repor>0?i.repor:"-")+"</td>";
+    rows+="<td>"+bg+"</td></tr>";
+  }
+  if(!fil.length)rows="<tr><td colspan=\"7\" class=\"ep\">Nenhum item.</td></tr>";
+  var dt=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  var h="<div class=\"card\">";
+  h+="<div class=\"mg\">";
+  h+="<div class=\"mc\"><div class=\"ml\">Produtos</div><div class=\"mv\">"+dadosPL.length+"</div></div>";
+  h+="<div class=\"mc\"><div class=\"ml\">Repor</div><div class=\"mv ye\">"+tR+"</div></div>";
+  h+="<div class=\"mc\"><div class=\"ml\">Critico</div><div class=\"mv rd\">"+tC+"</div></div>";
+  h+="<div class=\"mc\"><div class=\"ml\">Ok</div><div class=\"mv gn\">"+tO+"</div></div>";
+  h+="<div class=\"mc\"><div class=\"ml\">Vendido</div><div class=\"mv bl\">"+tV+"</div></div>";
+  h+="</div><div class=\"fr\">";
+  h+="<select onchange=\"chFilt(this.value)\" style=\"font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--sf);color:var(--tx)\">";
+  h+="<option value=\"todos\">Todos</option><option value=\"critico\">Critico</option><option value=\"repor\">Repor</option><option value=\"ok\">Ok</option>";
+  h+="</select>";
+  h+="<button class=\"btn bs bw\" onclick=\"expWA()\">WhatsApp</button>";
+  h+="<button class=\"btn bs\" onclick=\"showVnd()\">Voltar</button>";
+  h+="</div><div class=\"tw\"><table><thead><tr>";
+  h+="<th onclick=\"sortPL('apelido')\">Produto</th>";
+  h+="<th class=\"nr\" onclick=\"sortPL('estoque_atual')\">Estoque</th>";
+  h+="<th class=\"nr\" onclick=\"sortPL('vendido')\">Vendido</th>";
+  h+="<th class=\"nr\" onclick=\"sortPL('saldo')\">Saldo</th>";
+  h+="<th class=\"nr\">Minimo</th>";
+  h+="<th class=\"nr\" onclick=\"sortPL('repor')\">Repor</th>";
+  h+="<th>Status</th></tr></thead><tbody>"+rows+"</tbody></table></div>";
+  h+="<p class=\"pf\">Gerado em "+dt+"</p></div>";
+  Q("ra").innerHTML=h;
+}
+function expWA(){
+  var its=dadosPL.filter(function(i){return i.repor>0;}).sort(function(a,b){
+    var sa=stItem(a)==="critico"?0:1,sb=stItem(b)==="critico"?0:1;return sa-sb||b.repor-a.repor;
+  });
+  if(!its.length){alert("Nenhum item para repor!");return;}
+  var txt="*Pick List - Flash Courier*\n"+new Date().toLocaleDateString("pt-BR")+"\n\n";
+  var cat="";
+  for(var i=0;i<its.length;i++){
+    var it=its[i];
+    if(it.categoria!==cat){cat=it.categoria;txt+="\n*"+cat+"*\n";}
+    txt+=(stItem(it)==="critico"?"[CRITICO] ":"[REPOR] ")+it.apelido+": "+it.repor+" un (saldo: "+it.saldo+")\n";
+  }
+  txt+="\nOpen You Market";
+  window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");
+}
+carregarBase();
+</script>
+</body>
+</html>
