@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick List — Flash Courier</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: #e0ddd5;
+    --border2: #ccc9be;
+    --text: #1a1a18;
+    --text2: #6b6860;
+    --text3: #9e9b93;
+    --accent: #1a1a18;
+    --green: #2d7a4f;
+    --green-bg: #e8f5ee;
+    --yellow: #9a6c00;
+    --yellow-bg: #fff8e1;
+    --red: #b93232;
+    --red-bg: #fdeaea;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
+  header p { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+
+  .container { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+
+  textarea {
+    width: 100%;
+    min-height: 130px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    color: var(--text);
+    resize: vertical;
+    line-height: 1.6;
+  }
+  textarea:focus { outline: none; border-color: var(--border2); }
+
+  .parse-info { font-size: 12px; color: var(--green); margin-top: 6px; min-height: 16px; }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--surface2);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .drop-zone:hover { border-color: var(--accent); background: var(--bg); }
+  .drop-zone.drag-over { border-color: var(--accent); background: var(--bg); }
+  .drop-zone.loaded { border-color: var(--green); border-style: solid; }
+  .drop-zone svg { display: block; margin: 0 auto 10px; opacity: 0.4; }
+  .drop-zone p { font-size: 13px; color: var(--text2); }
+  .drop-zone.loaded p { color: var(--green); }
+  #file-input { display: none; }
+
+  .error-msg { font-size: 12px; color: var(--red); margin-top: 6px; min-height: 16px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn-primary:hover { opacity: 0.88; background: var(--accent); }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .btn-wa { background: #25d366; color: #fff; border-color: transparent; }
+  .btn-wa:hover { opacity: 0.88; background: #25d366; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* MÉTRICAS */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .metric {
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+  }
+  .metric-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .metric-value { font-size: 24px; font-weight: 700; color: var(--text); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.yellow { color: var(--yellow); }
+  .metric-value.green { color: var(--green); }
+
+  /* FILTRO */
+  .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  select {
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+  }
+  select:focus { outline: none; }
+
+  /* TABELA */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+
+  .min-input {
+    width: 56px;
+    padding: 4px 6px;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .min-input:focus { outline: none; border-color: var(--border2); }
+
+  .saldo-neg { color: var(--red); font-weight: 600; }
+  .repor-val { color: var(--yellow); font-weight: 700; }
+
+  .empty { text-align: center; padding: 2.5rem; color: var(--text2); font-size: 13px; }
+
+  .msg-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2rem;
+    text-align: center;
+    color: var(--text2);
+    font-size: 13px;
+  }
+
+  /* RODAPÉ DA PICK LIST */
+  .pl-footer { margin-top: 14px; font-size: 12px; color: var(--text3); text-align: right; }
+
+  @media (max-width: 500px) {
+    header h1 { font-size: 15px; }
+    .container { padding: 14px 12px 60px; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📦 Pick List — Flash Courier</h1>
+    <p>Open You Market</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('dados')">Dados</div>
+    <div class="tab" onclick="showTab('picklist')" id="tab-pl-btn">Pick List</div>
+  </div>
+
+  <!-- ABA DADOS -->
+  <div id="tab-dados">
+
+    <div class="card">
+      <div class="card-title">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        Estoque atual
+      </div>
+      <label>Cole aqui o estoque do WhatsApp — um produto por linha:<br>
+        <span style="opacity:0.7; font-size:12px;">Formato: Produto — Quantidade (traço, vírgula ou dois-pontos)</span>
+      </label>
+      <textarea id="estoque-txt" placeholder="Exemplos:
+Monster Mango Loco — 8
+Coca-Cola Lata 350ml — 12
+Trident Morango — 20
+Cup Noodles — 5
+Lanche Natural Peito de Peru — 4
+Pudim Calda de Caramelo — 6"></textarea>
+      <p class="parse-info" id="parse-info"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Relatório de vendas (Excel)
+      </div>
+      <div class="drop-zone" id="drop-zone"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="event.preventDefault();this.classList.remove('drag-over');handleFile(event.dataTransfer.files[0])">
+        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p id="drop-label">Clique ou arraste o arquivo .xlsx aqui</p>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+      <p class="error-msg" id="file-error"></p>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="gerarPickList()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Gerar Pick List
+      </button>
+      <button class="btn" onclick="limparTudo()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.93"/></svg>
+        Limpar
+      </button>
+    </div>
+    <p class="error-msg" id="gerar-error"></p>
+
+  </div>
+
+  <!-- ABA PICK LIST -->
+  <div id="tab-picklist" style="display:none;">
+    <div id="result-area">
+      <div class="msg-box">Gere a pick list na aba "Dados" primeiro.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let dadosVendas = null;
+  let dadosEstoque = [];
+  let sortCol = 'repor';
+  let sortDir = -1;
+  let filtroStatus = 'todos';
+
+  function showTab(t) {
+    document.getElementById('tab-dados').style.display = t === 'dados' ? '' : 'none';
+    document.getElementById('tab-picklist').style.display = t === 'picklist' ? '' : 'none';
+    document.querySelectorAll('.tab').forEach((el, i) => {
+      el.classList.toggle('active', ['dados','picklist'][i] === t);
+    });
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    document.getElementById('file-error').textContent = '';
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        let headerIdx = -1;
+        for (let i = 0; i < Math.min(15, rows.length); i++) {
+          const joined = rows[i].join('').toLowerCase();
+          if (joined.includes('produto') && joined.includes('quantidade')) { headerIdx = i; break; }
+        }
+        if (headerIdx === -1) {
+          document.getElementById('file-error').textContent = 'Não encontrei as colunas Produto e Quantidade. Verifique o arquivo.';
+          return;
+        }
+        const headers = rows[headerIdx].map(h => String(h).trim().toLowerCase());
+        const iProd = headers.findIndex(h => h.includes('produto'));
+        const iQtd = headers.findIndex(h => h.includes('quantidade'));
+        const iLocal = headers.findIndex(h => h.includes('cliente') || h.includes('local'));
+        if (iProd === -1 || iQtd === -1) {
+          document.getElementById('file-error').textContent = 'Colunas de produto ou quantidade não localizadas.';
+          return;
+        }
+        const data = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+          const r = rows[i];
+          const local = iLocal >= 0 ? String(r[iLocal] || '').trim() : '';
+          const prod = String(r[iProd] || '').trim();
+          const qtd = parseFloat(r[iQtd]) || 0;
+          if (!prod) continue;
+          data.push({ local, prod, qtd });
+        }
+        dadosVendas = data;
+        const flash = data.filter(r => r.local.toLowerCase().includes('flash'));
+        const dz = document.getElementById('drop-zone');
+        dz.classList.add('loaded');
+        document.getElementById('drop-label').textContent = '✓ ' + file.name + ' — ' + flash.length + ' vendas do Flash Courier carregadas';
+      } catch(ex) {
+        document.getElementById('file-error').textContent = 'Erro ao ler o arquivo: ' + ex.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function parseEstoque(txt) {
+    const lines = txt.trim().split('\n').filter(l => l.trim());
+    const items = [];
+    for (const line of lines) {
+      const parts = line.split(/[—\-,:;|]+/);
+      if (parts.length < 2) continue;
+      const qtdPart = parts[parts.length - 1].trim();
+      const nomePart = parts.slice(0, parts.length - 1).join(' ').trim();
+      const qtd = parseFloat(qtdPart.replace(',', '.'));
+      if (!nomePart || isNaN(qtd)) continue;
+      const minimo = Math.max(qtd, Math.ceil(qtd * 1.5));
+      items.push({ nome: nomePart, atual: qtd, minimo });
+    }
+    return items;
+  }
+
+  document.getElementById('estoque-txt').addEventListener('input', function() {
+    const items = parseEstoque(this.value);
+    document.getElementById('parse-info').textContent = items.length > 0 ? items.length + ' produto(s) reconhecido(s)' : '';
+  });
+
+  function normNome(s) {
+    return String(s).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  function similarity(a, b) {
+    const wordsA = new Set(a.split(' ').filter(w => w.length > 2));
+    const wordsB = new Set(b.split(' ').filter(w => w.length > 2));
+    if (wordsA.size === 0 || wordsB.size === 0) return 0;
+    let inter = 0;
+    for (const w of wordsA) if (wordsB.has(w)) inter++;
+    return inter / Math.max(wordsA.size, wordsB.size);
+  }
+
+  function gerarPickList() {
+    document.getElementById('gerar-error').textContent = '';
+    const txt = document.getElementById('estoque-txt').value;
+    const estoque = parseEstoque(txt);
+    if (estoque.length === 0) {
+      document.getElementById('gerar-error').textContent = 'Informe o estoque atual no campo de texto.';
+      return;
+    }
+    if (!dadosVendas) {
+      document.getElementById('gerar-error').textContent = 'Faça o upload do relatório de vendas em Excel.';
+      return;
+    }
+
+    const flash = dadosVendas.filter(r => r.local.toLowerCase().includes('flash'));
+    const vendasMap = {};
+    for (const v of flash) {
+      const n = normNome(v.prod);
+      if (!vendasMap[n]) vendasMap[n] = { total: 0, nome: v.prod };
+      vendasMap[n].total += v.qtd;
+    }
+
+    dadosEstoque = estoque.map(item => {
+      const norm = normNome(item.nome);
+      let melhor = null, melhorScore = 0;
+      for (const [k, v] of Object.entries(vendasMap)) {
+        const score = similarity(norm, k);
+        if (score > melhorScore) { melhorScore = score; melhor = v; }
+      }
+      const vendido = (melhor && melhorScore > 0.35) ? melhor.total : 0;
+      const saldo = item.atual - vendido;
+      const repor = Math.max(0, item.minimo - saldo);
+      return { nome: item.nome, atual: item.atual, vendido, minimo: item.minimo, saldo, repor };
+    });
+
+    renderPickList();
+    showTab('picklist');
+  }
+
+  function statusItem(item) {
+    if (item.saldo <= 0) return 'critico';
+    if (item.repor > 0) return 'repor';
+    return 'ok';
+  }
+
+  function setSortCol(col) {
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = -1; }
+    renderPickList();
+  }
+
+  function atualizarMin(nome, val) {
+    const item = dadosEstoque.find(i => i.nome === nome);
+    if (!item) return;
+    item.minimo = parseFloat(val) || 0;
+    item.saldo = item.atual - item.vendido;
+    item.repor = Math.max(0, item.minimo - item.saldo);
+    renderPickList();
+  }
+
+  function renderPickList() {
+    const sorted = [...dadosEstoque].sort((a, b) => {
+      const av = a[sortCol], bv = b[sortCol];
+      if (typeof av === 'string') return sortDir * av.localeCompare(bv, 'pt-BR');
+      return sortDir * (bv - av);
+    });
+
+    const filtrado = filtroStatus === 'todos' ? sorted : sorted.filter(i => statusItem(i) === filtroStatus);
+    const totalRepor = dadosEstoque.filter(i => i.repor > 0).length;
+    const totalCrit = dadosEstoque.filter(i => statusItem(i) === 'critico').length;
+    const totalOk = dadosEstoque.filter(i => statusItem(i) === 'ok').length;
+    const totalVendido = dadosEstoque.reduce((s, i) => s + i.vendido, 0);
+
+    const si = (col) => sortCol === col ? (sortDir > 0 ? ' ↑' : ' ↓') : '';
+
+    let rows = '';
+    for (const item of filtrado) {
+      const st = statusItem(item);
+      const badge = st === 'critico'
+        ? '<span class="badge badge-red">🔴 Crítico</span>'
+        : st === 'repor'
+        ? '<span class="badge badge-yellow">🟡 Repor</span>'
+        : '<span class="badge badge-green">🟢 Ok</span>';
+      const saldoClass = item.saldo <= 0 ? ' saldo-neg' : '';
+      const reporClass = item.repor > 0 ? ' repor-val' : '';
+      rows += `<tr>
+        <td>${item.nome}</td>
+        <td class="num">${item.atual}</td>
+        <td class="num">${item.vendido}</td>
+        <td class="num${saldoClass}">${item.saldo}</td>
+        <td class="num"><input class="min-input" type="number" min="0" value="${item.minimo}" onchange="atualizarMin('${item.nome.replace(/'/g,"\\'")}',this.value)"></td>
+        <td class="num${reporClass}">${item.repor > 0 ? item.repor : '—'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }
+
+    if (filtrado.length === 0) {
+      rows = `<tr><td colspan="7" class="empty">Nenhum item neste filtro.</td></tr>`;
+    }
+
+    const html = `
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Produtos</div><div class="metric-value">${dadosEstoque.length}</div></div>
+        <div class="metric"><div class="metric-label">Repor</div><div class="metric-value yellow">${totalRepor}</div></div>
+        <div class="metric"><div class="metric-label">Crítico</div><div class="metric-value red">${totalCrit}</div></div>
+        <div class="metric"><div class="metric-label">Ok</div><div class="metric-value green">${totalOk}</div></div>
+        <div class="metric"><div class="metric-label">Total vendido</div><div class="metric-value">${totalVendido}</div></div>
+      </div>
+
+      <div class="filter-row">
+        <select onchange="filtroStatus=this.value;renderPickList()">
+          <option value="todos">Todos os produtos</option>
+          <option value="critico">🔴 Crítico</option>
+          <option value="repor">🟡 Repor</option>
+          <option value="ok">🟢 Ok</option>
+        </select>
+        <button class="btn btn-sm btn-wa" onclick="exportarWA()">
+          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.998 2C6.478 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5.009L2 22l5.135-1.31A9.956 9.956 0 0 0 12 22c5.52 0 10-4.477 10-10S17.518 2 11.998 2zm.002 18.198c-1.681 0-3.245-.468-4.58-1.278l-.328-.195-3.047.777.806-2.968-.215-.34A8.178 8.178 0 0 1 3.8 12c0-4.516 3.682-8.198 8.2-8.198 4.516 0 8.198 3.682 8.198 8.198 0 4.515-3.682 8.198-8.198 8.198z"/></svg>
+          Exportar WhatsApp
+        </button>
+        <button class="btn btn-sm" onclick="showTab('dados')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Editar dados
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="setSortCol('nome')">Produto${si('nome')}</th>
+              <th class="num" onclick="setSortCol('atual')">Estoque${si('atual')}</th>
+              <th class="num" onclick="setSortCol('vendido')">Vendido${si('vendido')}</th>
+              <th class="num" onclick="setSortCol('saldo')">Saldo${si('saldo')}</th>
+              <th class="num">Mínimo</th>
+              <th class="num" onclick="setSortCol('repor')">Repor${si('repor')}</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p class="pl-footer">Gerado em ${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+    `;
+
+    document.getElementById('result-area').innerHTML = html;
+  }
+
+  function exportarWA() {
+    const itens = dadosEstoque.filter(i => i.repor > 0).sort((a, b) => b.repor - a.repor);
+    if (itens.length === 0) { alert('Nenhum item para repor!'); return; }
+    const data = new Date().toLocaleDateString('pt-BR');
+    let txt = '📦 *Pick List — Flash Courier*\n📅 ' + data + '\n\n';
+    for (const i of itens) {
+      const emoji = statusItem(i) === 'critico' ? '🔴' : '🟡';
+      txt += emoji + ' ' + i.nome + ': *' + i.repor + ' un*';
+      txt += ' _(saldo: ' + i.saldo + ')_\n';
+    }
+    txt += '\n_Open You Market_';
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }
+
+  function limparTudo() {
+    dadosVendas = null;
+    dadosEstoque = [];
+    document.getElementById('estoque-txt').value = '';
+    document.getElementById('parse-info').textContent = '';
+    document.getElementById('drop-label').textContent = 'Clique ou arraste o arquivo .xlsx aqui';
+    document.getElementById('drop-zone').classList.remove('loaded');
+    document.getElementById('file-error').textContent = '';
+    document.getElementById('gerar-error').textContent = '';
+    document.getElementById('result-area').innerHTML = '<div class="msg-box">Gere a pick list na aba "Dados" primeiro.</div>';
+    showTab('dados');
+  }
+</script>
+</body>
+</html>
